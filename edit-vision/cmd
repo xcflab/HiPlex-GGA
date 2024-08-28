@@ -1,0 +1,1 @@
+python oligo_split.py -adapter_fname six_pool_adapters_short_list.txt -input_list five_test.fasta -adapter_number 1 -max_oligo_size 300 -frag_num 6|tee temp

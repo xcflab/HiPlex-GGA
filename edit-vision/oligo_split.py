@@ -1,0 +1,449 @@
+#!/usr/bin/env python
+import numpy as np
+from tqdm import tqdm
+import sys
+import argparse
+from Bio import SeqIO
+from Bio.Seq import Seq
+
+#function:
+def read_adapters(infile, frag_num):
+    """
+    Reads in the adapter file, obetaining the correct sequences from the expected format.
+    """
+    handle = open(infile, 'r')
+    # get all lines, skip final newline and drop first line that has titles:
+    lines = [ line[:-1] for line in handle.readlines() ][1:]
+    adapter_list=[]
+    for i in range(frag_num * 2):
+        l = [ line.split()[i+1] for line in lines ]
+        adapter_list.append(l)
+    return adapter_list
+
+def count_frag_lenth(seq_len, frag_th, frag_num_left, max_inner_len=220, max_last_len=210, max_fist_len=210, min_len=188):
+    frag_min_len = seq_len - (max_inner_len - 4) * ( frag_num_left - 1 ) - ( max_last_len - 4)
+    if frag_min_len < min_len:
+        frag_min_len = min_len
+    
+    if frag_th == 1:
+        assert frag_min_len <= max_fist_len
+    else:
+        assert frag_min_len <= max_inner_len
+
+    if frag_num_left == 1:
+        last_len = seq_len - max_inner_len
+        if last_len < min_len:
+            max_inner_len = seq_len - min_len * ( frag_num_left - 1 )
+        
+    return frag_min_len
+
+def check_overhang_unique(end_list, to_check_end):
+    # 检查粘性末端是否唯一
+    flag = True
+    if to_check_end in end_list:
+        flag = False
+    return flag
+
+def split_with_pos(sequence, pos, overhang_len=4):
+    # 根据粘性末端的位置切分序列
+    end_len_1 = overhang_len
+    seq_1 = sequence[0:pos]
+    seq_2 = sequence[pos-end_len_1:]
+    overhang = Seq(sequence[pos-end_len_1:pos])
+    overhang_pair = overhang.reverse_complement()
+    return seq_1, seq_2, overhang, overhang_pair
+
+def split_with_pos_re(sequence, pos, overhang_len=4):
+    # 根据粘性末端的位置切分序列
+    end_len_1 = overhang_len
+    seq_1 = sequence[pos-end_len_1:]
+    seq_2 = sequence[0:pos]
+    overhang = Seq(sequence[pos-end_len_1:pos])
+    overhang_pair = overhang.reverse_complement()
+    return seq_1, seq_2, overhang, overhang_pair
+
+def find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len):
+    overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'CCGC', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGCC', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT']
+    overhangs_2nd = ['ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'CCCC', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+    if i == 1:
+        max_len = max_len_5
+    else:
+        max_len = max_inner_len
+        
+    for j in range(end_pos, max_len + 1):
+        frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            break
+    if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+        print('select overhang for 1st level overhang: ', overhang)
+    else:
+        for j in range(end_pos, max_len + 1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+            if overhang in overhangs_2nd and check_overhang_unique(overhang_list, overhang):
+                print('select overhang for 2nd level overhang:', overhang)
+                break
+    
+    return frag, rest_seq, overhang, overhang_pair
+
+def find_overhang_from_list_max_re(end_pos, i, max_len_3, max_inner_len, overhang_list, seq, overhang_len):
+    overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'CCGC', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGCC', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT']
+    overhangs_2nd = ['ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'CCCC', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+    if i == 5:
+        max_len = len(seq) - max_len_3
+    else:
+        max_len = len(seq) - max_inner_len
+        
+    for j in range(end_pos + 1, max_len, -1 ):
+        frag, rest_seq, overhang, overhang_pair = split_with_pos_re(seq, j, overhang_len)
+        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            break
+    if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+        print('select overhang for 1st level overhang: ', overhang)
+    else:
+        for j in range(max_len, end_pos + 1, -1 ):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos_re(seq, j, overhang_len)
+            if overhang in overhangs_2nd and check_overhang_unique(overhang_list, overhang):
+                print('select overhang for 2nd level overhang:', overhang)
+                break
+            
+    return frag, rest_seq, overhang, overhang_pair
+    
+def find_overhang_from_list_min(end_pos, frag_min_len, overhang_list, seq, overhang_len):
+    overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'CCGC', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGCC', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT']
+    overhangs_2nd = ['ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'CCCC', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+    print(end_pos, frag_min_len - 1)
+    for j in range(end_pos, frag_min_len - 1, -1):
+        frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            break
+    if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+        print('select overhang form min for 1st level overhang: ', overhang)
+    else:
+        for j in range(end_pos, frag_min_len - 1, -1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+            if overhang in overhangs_2nd and check_overhang_unique(overhang_list, overhang):
+                print('select overhang form min for 2nd level overhang: ', overhang)
+                break
+    return frag, rest_seq, overhang, overhang_pair
+
+def find_overhang_from_list_min_re(end_pos, frag_min_len, overhang_list, seq, overhang_len):
+    overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'CCGC', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGCC', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT']
+    overhangs_2nd = ['ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'CCCC', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+    min_len = len(seq) - frag_min_len
+    for j in range(end_pos, min_len + 1):
+        frag, rest_seq, overhang, overhang_pair = split_with_pos_re(seq, j, overhang_len)
+        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            break
+    if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+        print('select overhang form min for 1st level overhang: ', overhang)
+    else:
+        for j in range(end_pos, min_len + 1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos_re(seq, j, overhang_len)
+            if overhang in overhangs_2nd and check_overhang_unique(overhang_list, overhang):
+                print('select overhang form min for 2nd level overhang: ', overhang)
+                break
+    return frag, rest_seq, overhang, overhang_pair
+
+def find_overhang_from_3rd(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len):
+    if i == 1:
+        for j in range(end_pos, max_len_5 + 1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+            if check_overhang_unique(overhang_list, overhang):
+                print("pick end_pos from end_pos to max_len_5")
+                break
+    else:
+        for j in range(end_pos, max_inner_len + 1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+            if check_overhang_unique(overhang_list, overhang):
+                print("pick end_pos from end_pos to max_inner_len")
+                break
+            
+    return frag, rest_seq, overhang, overhang_pair
+
+def find_unique_overhang(end_pos, i, max_len_5, max_len_3, max_inner_len, frag_min_len, overhang_list, seq, seq_num, overhang_len = 4):
+    #The best overhangs are included in overhangs_1st. The second good overhangs are included in overhangs_2nd.
+    overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'CCGC', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGCC', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT']
+    overhangs_2nd = ['ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'CCCC', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+    if seq_num % 2 == 0:
+        #Choose overhang from end_pos to max_len
+        frag, rest_seq, overhang, overhang_pair = find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
+        print("odd", overhang)
+        #If there is no unique overhang from end_pos to max_len, choose from min_len to end_pos
+        if overhang not in (overhangs_1st + overhangs_2nd) or not check_overhang_unique(overhang_list, overhang):
+            frag, rest_seq, overhang, overhang_pair = find_overhang_from_list_min(end_pos, frag_min_len, overhang_list, seq, overhang_len)
+
+        if overhang not in (overhangs_1st + overhangs_2nd) and check_overhang_unique(overhang_list, overhang):
+            print('select overhang form min for 3rd level overhang: ', overhang)
+        
+        while not check_overhang_unique(overhang_list, overhang):
+            frag, rest_seq, overhang, overhang_pair = find_overhang_from_3rd(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
+            break
+        print("even", overhang)
+        while not check_overhang_unique(overhang_list, overhang):
+            for j in range(end_pos, frag_min_len - 1, -1):
+                frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+                if check_overhang_unique(overhang_list, overhang):
+                    print("pick end_pos from frag_min_len to end_pos")
+                    break
+            break 
+    else:
+        #Choose overhang from end_pos to max_len
+        frag, rest_seq, overhang, overhang_pair = find_overhang_from_list_max_re(end_pos, i, max_len_3, max_inner_len, overhang_list, seq, overhang_len)
+        print("Here_1", overhang)
+        #If there is no unique overhang from end_pos to max_len, choose from min_len to end_pos
+        if overhang not in (overhangs_1st + overhangs_2nd) or not check_overhang_unique(overhang_list, overhang):
+            frag, rest_seq, overhang, overhang_pair = find_overhang_from_list_min_re(end_pos, frag_min_len, overhang_list, seq, overhang_len)
+
+        if overhang not in (overhangs_1st + overhangs_2nd) and check_overhang_unique(overhang_list, overhang):
+            print('select overhang form min for 3rd level overhang: ', overhang)
+        
+        while not check_overhang_unique(overhang_list, overhang):
+            frag, rest_seq, overhang, overhang_pair = find_overhang_from_3rd(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
+            break
+        print("Here", overhang)
+        while not check_overhang_unique(overhang_list, overhang):
+            for j in range(end_pos, frag_min_len - 1, -1):
+                frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+                if check_overhang_unique(overhang_list, overhang):
+                    print("pick end_pos from frag_min_len to end_pos")
+                    break
+            break 
+     
+    return frag, rest_seq, overhang, overhang_pair
+
+def check_ruslt(frag_1,frag_2,frag_3):
+    # 用来检查结果的可视化
+    f1_end = frag_1[-10:]
+    f2_start = frag_2[:10]
+    f2_end = frag_2[-10:]
+    f3_start = frag_3[:10]
+
+    bar = "-"*6
+    print("\ncohesive end 1")
+    print(f"{f1_end}{bar}")
+    print(f"{bar}{f2_start}")
+
+    print("\ncohesive end 2")
+    print(f"{f2_end}{bar}")
+    print(f"{bar}{f3_start}")
+    
+def add_adapter(frag, adapter_5, adapter_3, enzyme):
+    # It can add adapter to frags
+    frag_ada = adapter_5 + frag + adapter_3
+    if len(frag_ada) < 201 :
+        frag_ada = adapter_5 + frag + enzyme + 'cactgcgtggttcgcgtcctaaaccagtggccgggatagacacttgatccaaattgtgactcaccaaaggtacatcgtcacattgccaactgg' + adapter_3
+    elif len(frag_ada) < 251 :
+        frag_ada = adapter_5 + frag + enzyme + 'agggctcgtgtcgccaccaatggggtattcacgtagcggctgg' + adapter_3
+ 
+    return frag_ada
+
+def add_adapter_last(frag, adapter_5, adapter_3, enzyme):
+    # It can add adapter to frags
+    frag_ada = adapter_5 + frag + adapter_3
+    if len(frag_ada) < 201 :
+        frag_ada = adapter_5 + 'ctggctctaagtaggaaccagacgagatacgttattgactttaactccccagcagtttgtgagccttgcgcggtgtccgaagactctcgacga' + enzyme + frag + adapter_3
+    elif len(frag_ada) < 251 :
+        frag_ada = adapter_5 + 'ctggttttaatcagacgccacctctctcgcgagacacaatagg' + enzyme + frag + adapter_3
+    return frag_ada
+
+def add_adapter_list(seq_name, frag_seq, adapter_list, adapter_idx, frag_num):
+    # It can add adapter to frags
+    alphabet = ["a", "b", "c", "d", "e", "f", "g"]
+    frag_ad_list = {}
+    for i in range(frag_num):
+        name = alphabet[i]+ "_"+ seq_name
+        if frag_seq[i] == "":
+            frag_ad_list[name] = "not_split"
+        else:
+            frag_ad = adapter_list[i][adapter_idx] + frag_seq[i] + adapter_list[i + 1][adapter_idx]
+            if len(frag_ad) < 201 :
+                frag_ad = adapter_list[i][adapter_idx] + frag_seq[i] + "enzyme" + 'cactgcgtggttcgcgtcctaaaccagtggccgggatagacacttgatccaaattgtgactcaccaaaggtacatcgtcacattgccaactgg' + adapter_list[i + 1][adapter_idx]
+            elif len(frag_ad) < 251 :
+                frag_ad = adapter_list[i][adapter_idx] + frag_seq[i] + "enzyme" + 'agggctcgtgtcgccaccaatggggtattcacgtagcggctgg' + adapter_list[i + 1][adapter_idx]
+            frag_ad_list[name] = frag_ad
+ 
+    return frag_ad_list
+
+def split_sequences_more_fragments(seq_list, frag_num, adapter_list, adapter_idx, max_oligo_size=300, primer_len_5=50, primer_in_len=40, primer_len_3=50, overhang_len=4):
+    '''
+    使用两种酶的情况下, 根据oligo长度和分段切分末端
+    '''
+    assert len(seq_list) < 101
+    #input the site of enzyme
+    #3'
+    bsai = 'AGAGACC'
+    bsmi = 'AGAGACG'
+    #5'
+    BsaI = 'GGTCTCA'
+    BsmI = 'CGTCTCA'
+    
+    oligoa_3 = adapter_list[1]
+    ecoli_primer5 = adapter_list[0][adapter_idx]# 5' == adapter_list[0]
+    ecoli_primer3 = adapter_list[-1][adapter_idx] # 3' == adapter_list[-1]
+    primer_len_5=len(ecoli_primer5)# 5端primer长度
+    primer_len_3=len(ecoli_primer3)# 3端primer长度
+    primer_in_len=len(oligoa_3[adapter_idx])# 中间primer长度 基于a片段的3端
+    batch_big_id = adapter_idx
+
+    max_len_5 = ( max_oligo_size - primer_len_5 - primer_in_len )
+    #5端frag最长长度
+    max_inner_len =( max_oligo_size - primer_in_len * 2 )
+    #中间frag最长长度
+    max_len_3 = ( max_oligo_size - primer_len_3 - primer_in_len )
+    #3端frag最长长度
+        
+    cut_successful_flag = False
+    overhang_list = []
+    while not cut_successful_flag:
+        for frag_order in range(1, frag_num):
+            frag_order = []
+            overhang_list.append(frag_order)
+
+        split_result = {}
+        
+        seq_num = 0
+        for name, seq in tqdm(seq_list.items()):
+            not_unique_overhang = False
+            frag_seq = []
+            if seq_num % 2 == 0:
+                for i in range(1, frag_num):
+                    print(i)
+                    frag_num_left = frag_num - i
+                    frag_min_len=count_frag_lenth(len(seq), i, frag_num_left)
+                    
+                    #End_pos is the average length of each fragment.
+                    end_pos = round((len(seq) + frag_num_left * 4 )/(frag_num_left+1))
+
+                    #find unique overhang
+                    frag, rest_seq, overhang, overhang_pair = find_unique_overhang(end_pos, i, max_len_5, max_len_3, max_inner_len, frag_min_len, overhang_list[i-1], seq, seq_num)
+                    print(len(frag), len(rest_seq))
+                    #Put frag into a list 
+                    while not check_overhang_unique(overhang_list[i-1], overhang):
+                        not_unique_overhang = True
+                        print('The %d fragment of oligo %s can\'t find unique overhang.' %(i, name))
+                        frag_seq.append("no")
+                        break
+                    else:
+                        frag_seq.append(frag)
+                    if i == frag_num - 1:
+                        frag_seq.append(rest_seq)
+                    if not_unique_overhang:
+                        print("Skip this oligo!")
+                        break
+
+                    overhang_list[i-1].append(overhang)
+                    overhang_list[i-1].append(overhang_pair)
+                    seq = rest_seq 
+            else:
+                for i in range(frag_num - 1, 0, -1):
+                    print(i)
+                    frag_num_left = i
+                    frag_order = frag_num - i
+                    frag_min_len=count_frag_lenth(len(seq), frag_order, frag_num_left)
+                    
+                    #End_pos is the average length of each fragment.
+                    aver_lenth = round((len(seq) + frag_num_left * 4 )/(frag_num_left+1))
+                    end_pos = len(seq) - aver_lenth
+                    print(end_pos, max_len_5 + 1, frag_min_len)
+
+                    #find unique overhang
+                    frag, rest_seq, overhang, overhang_pair = find_unique_overhang(end_pos, i, max_len_5, max_len_3, max_inner_len, frag_min_len, overhang_list[i-1], seq, seq_num)
+
+                    #Put frag into a list 
+                    while not check_overhang_unique(overhang_list[i-1], overhang):
+                        not_unique_overhang = True
+                        print('The %d fragment of oligo %s can\'t find unique overhang.' %(i, name))
+                        frag_seq.insert(0, "no")
+                        break
+                    else:
+                        frag_seq.insert(0, frag)
+                    if i == 1:
+                        frag_seq.insert(0, rest_seq)
+                    if not_unique_overhang:
+                        print("Skip this oligo!")
+                        break
+
+                    overhang_list[i-1].append(overhang)
+                    overhang_list[i-1].append(overhang_pair)
+                    seq = rest_seq 
+            
+            no_split = True if ("no" in frag_seq) else print("Oligo %s has been successfully spilted." %(name))
+            if not no_split:
+                frag_list = add_adapter_list(name, frag_seq, adapter_list, adapter_idx, frag_num) 
+                split_result[name]=frag_list 
+            else:
+                print("Oligo %s has not been successfully spilted." %(name))
+            
+            seq_num += 1
+            print("here", seq_num)
+        if not_unique_overhang:
+            continue
+        else:
+            print("Work is done!\n")
+            cut_successful_flag = True
+    
+    return split_result, overhang_list
+
+def main(args):
+    ####################################
+    #input oligo length
+    max_oligo_size = args.max_oligo_size
+    min_len = args.min_oligo_size
+    frag_num = args.frag_num
+    ad_fname = args.adapter_fname
+    adapter_idx = args.adapter_number - 1
+
+    #input the design names and sequences
+    with open(args.input_list,'r', encoding='utf-8-sig') as ip:
+        lines = ip.readlines()
+
+    seq_list = {}
+    for line in lines:
+        its = line.strip().split()
+        if len(its) != 2:
+            print("Skipping:")
+            print(its)
+            continue
+        else:
+            seq_list[its[0]] = its[1]
+
+    print(f'file loaded! {len(seq_list)}')
+
+    '''
+    BEGGINING OF MAIN:
+    '''
+    # Load and process sequence files:
+    # for this verison, specify which line of the adapters should be used
+    # numbering starts from 1, not like python 0
+    
+    # Get adapters ready
+    adapter_list = read_adapters(ad_fname, frag_num)
+    
+    #split the sequences into oligos
+    result_list, overhang_list = split_sequences_more_fragments(seq_list, frag_num, adapter_list, adapter_idx)
+    
+    #write the output file
+    with open('%d_oligos_subpools_%d.tab'%(frag_num, args.adapter_number), 'w') as outputfile:
+        for name, frag_seq in result_list.items():
+            for key_1, value_1 in frag_seq.items():
+                if len(value_1) > 300:
+                    print('Oligo %s is longer than 300bp!!!' % key_1)
+                if len(value_1) < 250:
+                    print('Oligo %s is shorter than 250bp!!!' % key_1)
+                outputfile.write(key_1 + ', ' + value_1 + '\n')
+
+
+if __name__ == '__main__':
+    ########## Option system: ###########
+    argparser = argparse.ArgumentParser(description='Split genes in orthogonal pieces that can be used in multiplex assembly')
+    argparser.add_argument('-input_list', type=str, help='Name of file containing: mygenename DNAsequence ')
+    argparser.add_argument('-adapter_fname', type=str, default='./pool_adapters_short_list.txt',help='Name of file containing adapter sequences. Format: First line: column names, followed by lines: adapter_name fiveprime_5 fiveprime_3 threeprime_5 threeprime_3')
+    argparser.add_argument('-adapter_number', type=int, help='What adapter to use? starting at 1')
+    argparser.add_argument('-max_oligo_size', type=int, default=300, help='Absolute max length of orderable oligo')
+    argparser.add_argument('-min_oligo_size', type=int, default=120, help='Absolute min length of orderable oligo')
+    argparser.add_argument('-enzyme_num', type=int, default=1, choices=[1, 2], help='The number of how many enzymes.')
+    argparser.add_argument('-frag_num', type=int, default=3, help='The number of how many fragments you want to split.')
+    
+    args = argparser.parse_args()
+    main(args)
+

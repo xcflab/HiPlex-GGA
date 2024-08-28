@@ -1,0 +1,10 @@
+name                    oligoA_5prime           oligoA_3prime             oligoB_5prime             oligoB_3prime             oligoC_5prime             oligoC_3prime     
+pET29b_zewu_1           ttttgtttaactttaaGAAGGAGATATACATATGAGGAGATATACATATG      AGAGACCcgtgaccaccaagAGAGACCcgtgaccaccaag      ccgcttatgatgcGGTCTCAccgcttatgatgcGGTCTCA      AGAGACCcgtgaccaccaagAGAGACCcgtgaccaccaag      ccgcttatgatgcGGTCTCAccgcttatgatgcGGTCTCA      CTCGAGCACCACCACCACCTCGAGCACCACCACCACGAGCACCACCACCA
+pET29b_zewu_2           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCcccactggcataa      gtcatctacacggGGTCTCA      AGAGACGccgaacgtatgtc      acggtgtcaatggCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_3           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCcgtgaccaccaag      ccgcttatgatgcGGTCTCA      AGAGACGgcctccaatgaca      tttcaaggagccgCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_4           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCgcgaccttagagt      caagctactccgaGGTCTCA      AGAGACGaccttgggtacgt      aacgaggtgtgctCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_5           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCagtcccttaccct      gcttgattgcaccGGTCTCA      AGAGACGgctcctagcatgt      gcactattaggcgCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_6           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCccgctcggctata      cattctgaccggcGGTCTCA      AGAGACGccccgtagagatt      cagcctaaaggagCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_7           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCgagggtctacaga      tcatcatctcgggGGTCTCA      AGAGACGgacagtggatctc      gtcgaattcagcgCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_8           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCcgtcatgctgttg      caggtgagcatcaGGTCTCA      AGAGACGcctctcacttgag      cgctttggacagtCGTCTCA      CTCGAGCACCACCACCAC
+pET29b_zewu_9           ttttgtttaactttaaGAAGGAGATATACATATG      AGAGACCgtggcatggcaac      caccggacagattGGTCTCA      AGAGACGcggttatccagac      ggcctgtatacagCGTCTCA      CTCGAGCACCACCACCAC
