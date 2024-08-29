@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Mar 28, 2024
+# Aug 28, 2024
 # Zhien Wu modified
 import numpy as np
 from tqdm import tqdm
@@ -8,6 +8,7 @@ import random
 import argparse
 from Bio import SeqIO
 from Bio.Seq import Seq
+from multiprocessing import Pool
 
 #overhand_list
 #The best overhangs are included in overhangs_1st. The second good overhangs are included in bad_overhangs.
@@ -96,6 +97,50 @@ def split_with_pos(sequence, pos, overhang_len=4):
     overhang = Seq(sequence[pos-end_len_1:pos])
     overhang_pair = overhang.reverse_complement()
     return seq_1, seq_2, overhang, overhang_pair
+
+def get_frame_end(startpoint):
+    """
+    Returns the frame end given the that the sequence has length "startpoint"
+    """
+    frameend = startpoint
+
+    if frameend % 3 == 0 :
+        frameend -= 1
+    elif frameend % 3 == 1:
+        frameend += 1
+
+    return frameend
+
+def replace_codons(s,frame_end,overlap_len,codons):
+    """
+    Returns a new sequence encoding for the same peptide, but with different codons in the overlap region.
+    """
+    #starting at the first position for new codon hence +1
+    randomized_positions = [i for i in range((frame_end+1)//3, (frame_end+1+ overlap_len)//3 )] #LA / to // to make integer
+    random.shuffle(randomized_positions)
+
+    #change 6 codons at a time
+    poss_to_change = min(6,len(randomized_positions)-1)
+    changed = randomized_positions[:poss_to_change]
+    a = sorted(changed)
+
+    sh = ""
+    for p in range(frame_end+1,frame_end+1+overlap_len, 3):
+        #if is_part(a,p/3):
+        if p/3 in a:
+            #Make a new codon
+            codon = ''
+            for i in range(3):
+                codon += s[p + i]
+            #grab a codon at random
+            aa = str(Seq(codon).translate())
+            r = random.randint(1,len(codons[aa]))
+            sh += codons[aa][r-1]
+        else:
+            # Return original codon
+            for i in range(3):
+                sh += s[p + i]
+    return sh
 
 def find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len):
     reasonable_tag = True
@@ -247,6 +292,74 @@ def find_unique_overhang(end_pos,
     else:
         return split_successful_tag
     
+def find_overhang_from_appropriate_range(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len):
+    reasonable_tag = True
+    
+    max_len = max_len_5 if i == 1 else max_inner_len
+    if max_len < end_pos:
+        reasonable_tag = False
+        return reasonable_tag
+    else:
+        for j in range(end_pos, max_len + 1):
+            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
+            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+                break
+        
+        #If there is no unique overhang from end_pos to max_len, return the last overhang
+        return frag, rest_seq, overhang, overhang_pair
+    
+def find_overhang(end_pos, 
+                    i, 
+                    max_len_5, 
+                    max_len_3, 
+                    max_inner_len, 
+                    frag_min_len, 
+                    overhang_list, 
+                    seq, 
+                    init_seq,
+                    seq_num, 
+                    frag_num, 
+                    condons,
+                    overhang_len = 4):
+    
+    split_successful_tag = False
+    
+    while not split_successful_tag:
+        result = find_overhang_from_appropriate_range(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
+        if isinstance(result, bool):
+            break
+        else:
+            frag, rest_seq, overhang, overhang_pair = result
+                
+        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            split_successful_tag = True
+        elif overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
+            split_successful_tag = True
+        else:
+            for trial in range(1000):
+                if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+                    break
+                if trial > 499:
+                    if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
+                        break 
+                fiveprime = init_seq[:max_inner_len-40]
+                frame_end = get_frame_end(len(fiveprime))
+                newseq = replace_codons(init_seq,frame_end,40,condons)
+                seq = seq[:frame_end+1] + newseq + seq[frame_end+1+len(newseq):]
+                #assert str(Seq(seq, unambiguous_dna).translate()) == protein_seqs[design]
+                result = find_overhang_from_appropriate_range(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
+                if isinstance(result, bool):
+                    break
+                else:
+                    frag, rest_seq, overhang, overhang_pair = result
+            init_seq = seq
+            
+            
+    if split_successful_tag:
+        return frag, rest_seq, overhang, overhang_pair, init_seq
+    else:
+        return split_successful_tag
+    
 def add_spool_barcode_list(seq_name, 
                            frag_seq, 
                            spool_barcode_list, 
@@ -310,18 +423,20 @@ def add_spool_barcode_list(seq_name,
  
     return frag_ad_list
 
-def split_sequences(seq_list, 
+def split_sequences(designs, 
+                    protein_seqs,
+                    codons,
                     frag_num, 
                     spool_barcode_list, 
                     subp_barc_idx, 
                     adapter_F, 
                     adapter_R, 
                     seq_barcode_list, 
-                    max_oligo_size=301,
-                    min_oligo_len=251):
+                    max_oligo_size=300,
+                    min_oligo_len=250):
     
     #Check if the size of subpool is larger than 100
-    assert len(seq_list) < 100
+    assert len(designs) < 100
     
     #subpool barcode length, all the same
     subp_barc_len_5 = len( spool_barcode_list[0][subp_barc_idx] ) #  the length of 5' subpool barcode
@@ -350,10 +465,11 @@ def split_sequences(seq_list,
     
     #split the sequences
     seq_num = 0
-    for name, seq in tqdm(seq_list.items()):
-        
+    for name, seq in tqdm(designs.items()):
+        AA = protein_seqs[name]
         #keep the original sequence
         init_seq = seq
+        total_seq_len = len(seq)
         cut_successful_flag = False
         not_unique_overhang = False
         
@@ -374,23 +490,25 @@ def split_sequences(seq_list,
                 end_pos = round((len(seq) + frag_num_left * 4 )/(frag_num_left+1))
 
                 #find unique overhang
-                result = find_unique_overhang(end_pos, 
+                result = find_overhang(end_pos, 
                                               i, 
                                               max_len_5, 
                                               max_len_3, 
                                               max_inner_len, 
                                               frag_min_len, 
                                               overhang_list[i-1], 
-                                              seq, 
+                                              seq,
+                                              init_seq, 
                                               seq_num, 
-                                              frag_num)
+                                              frag_num,
+                                              codons)
                 
                 if isinstance(result, bool):
                     #can't find unique overhang, need to re-split
                     try_times += 1
                     break
                 else:
-                    frag, rest_seq, overhang, overhang_pair, random_choice = result
+                    frag, rest_seq, overhang, overhang_pair, init_seq = result
                     #Put frag into a list 
                     frag_seq.append(frag)
                     if i == frag_num - 1:
@@ -432,7 +550,7 @@ def split_sequences(seq_list,
             if len(value_1) < min_oligo_len or len(value_1) > max_oligo_size:
                 not_suitable_length_flag = True
     #Check if all sequences have been split
-    if len(split_result) < len(seq_list) or not_suitable_length_flag:
+    if len(split_result) < len(designs) or not_suitable_length_flag:
         print("Try again!")
         return False
     else:
@@ -452,15 +570,40 @@ def main(args):
     #input the design names and sequences
     with open(args.input_list,'r', encoding='utf-8-sig') as ip:
         lines = ip.readlines()
-
-    seq_list = {}
+            
+    designs = {}
+    protein_seqs = {}
     for line in lines:
         its = line.strip().split()
-        if len(its) != 2:
+        if len(its) != 3:
+            print("Skipping:")
+            print(its)
             continue
         else:
-            seq_list[its[0]] = its[1]
+            #input format name\tAA_seq\tNucleotide_seq
+            protein_seqs[its[0]] = its[1]
+            designs[its[0]] = its[2]
+            
+    print(f'file loaded! {len(protein_seqs)}')
+    
+    #Load codons
+    codonfile = open(args.codontable_fname, 'r').readlines()
+    codons = {}
+    for line in codonfile:
+        its = line.strip().split()
+        try:
+            if not codons[its[0]]:
+                codons[its[0]].append(its[1])
 
+            else:
+                codons[its[0]].append(its[1])
+        except KeyError:
+            bases = []
+            codons[its[0]] = bases
+            codons[its[0]].append(its[1])
+
+    print("your condons\n", codons)
+    
     '''
     BEGGINING OF MAIN:
     '''
@@ -472,10 +615,12 @@ def main(args):
     spool_barcode_list = read_subpool_barcode(spool_barc_fname, frag_num)
     
     # Get sequence barcodes ready
-    seq_barcode_list = read_sequence_barcode(seq_barc_fname, len(seq_list))
+    seq_barcode_list = read_sequence_barcode(seq_barc_fname, len(designs))
     
     #split the sequences into oligos
-    result = split_sequences(seq_list, 
+    result = split_sequences(designs, 
+                             protein_seqs,
+                             codons, 
                              frag_num, 
                              spool_barcode_list, 
                              subp_barc_idx, 
@@ -485,8 +630,8 @@ def main(args):
                              min_oligo_len = args.min_oligo_length)
     
     while isinstance(result, bool):
-        seq_list = shuffle_dict(seq_list)
-        result = split_sequences(seq_list, 
+        designs = shuffle_dict(designs)
+        result = split_sequences(designs, 
                                  frag_num, 
                                  spool_barcode_list, 
                                  subp_barc_idx, 
@@ -511,16 +656,18 @@ def main(args):
 if __name__ == '__main__':
     ########## Option system: ###########
     argparser = argparse.ArgumentParser(description='Split genes in orthogonal pieces that can be used in multiplex assembly')
-    argparser.add_argument('--input_list', type=str, help='Name of file containing: mygenename DNAsequence ')
+    argparser.add_argument('--input_list', type=str, required=True, help='Name of file containing: mygenename DNAsequence ')
     argparser.add_argument('--subpool_barcode_fname', type=str, default='./pool_subpools_barcode.txt',help='Name of file containing adapter sequences. Format: First line: column names, followed by lines: adapter_name fiveprime_5 fiveprime_3 threeprime_5 threeprime_3')
     argparser.add_argument('--adapter_f', type=str, default='FFFFFFFFFFFFFFFFFFFF',help='Forward adapter sequences. Default: ')
     argparser.add_argument('--adapter_r', type=str, default='RRRRRRRRRRRRRRRRRRRR',help='Reverse adapter sequences. Default: ')
     argparser.add_argument('--sequence_barcode_fname', type=str, default='./sequence_barcode_list.txt',help='Name of file containing sequence barcode sequences. Format: First line: column names, followed by lines: fiveprime_5 threeprime_3')
-    argparser.add_argument('--subp_barc_index', type=int, help='What subpool barcode to use? starting at 1')
+    argparser.add_argument('--subp_barc_index', type=int, required=True,  help='What subpool barcode to use? starting at 1')
     argparser.add_argument('--max_oligo_length', type=int, default=300, help='Absolute max length of orderable oligo')
     argparser.add_argument('--min_oligo_length', type=int, default=251, help='Absolute min length of orderable oligo')
     argparser.add_argument('--enzyme_num', type=int, default=1, choices=[1, 2], help='The number of how many enzymes.')
     argparser.add_argument('--frag_num', type=int, default=3, help='The number of how many fragments you want to split.')
+    argparser.add_argument('-codontable_fname', type=str,default='./codontable.tab',help='Codon table to use')
+    argparser.add_argument('-nproc', type=int,default=1,help='Number of processors to use. Must be in the same node (DIGs: -cX -N1 AFAIK)')
     
     args = argparser.parse_args()
     main(args)
