@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Aug 28, 2024
 # Zhien Wu modified
+import __future__
 import numpy as np
 from tqdm import tqdm
 import sys
@@ -29,6 +30,42 @@ BsmBI = 'CGTCTCA'
 #3'
 bsai = 'AGAGACC'
 bsmbi = 'AGAGACG'
+
+class Frag(object):
+    """
+    This object is used to store the information of the fragment.
+    """
+    def __init__(self, frag_num, dna_seq, aa_seq, max_len_5, max_inner_len, max_len_3, min_len): 
+        self.frag_num = frag_num
+        self.dna_seq = dna_seq
+        self.max_len_5 = max_len_5
+        self.max_inner_len = max_inner_len
+        self.max_len_3 = max_len_3
+        self.min_len = min_len
+        self.aa_seq = aa_seq
+        self.init_dna_seq = dna_seq
+        self.end_pos = 0
+        self.cut_order = 0
+        
+    def count_frag_lenth( frag_th, frag_num_left, min_len=115):
+        #This function is used to calculate the minimum length of the fragment.
+        seq_len = len(self.dna_seq)
+        frag_min_len = seq_len - (max_inner_len - 4) * ( frag_num_left - 1 ) - ( max_len_3 - 4)
+
+        if frag_min_len < min_len:
+            frag_min_len = min_len
+
+        if frag_th == 1:
+            assert frag_min_len <= max_len_5
+        else:
+            assert frag_min_len <= max_inner_len
+
+        if frag_num_left == 1:  #haven't used
+            last_len = seq_len - max_inner_len
+            if last_len < min_len:
+                max_inner_len = seq_len - min_len * ( frag_num_left - 1 )
+                
+        return frag_min_len
 
 #function:
 def shuffle_dict(input_dict):
@@ -323,7 +360,8 @@ def find_overhang(end_pos,
                     overhang_len = 4):
     
     split_successful_tag = False
-    
+    if i == 1 and end_pos >= max_len_5:
+        end_pos = frag_min_len
     while not split_successful_tag:
         result = find_overhang_from_appropriate_range(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
         if isinstance(result, bool):
@@ -338,9 +376,11 @@ def find_overhang(end_pos,
         else:
             for trial in range(1000):
                 if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+                    split_successful_tag = True
                     break
                 if trial > 499:
                     if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
+                        split_successful_tag = True
                         break 
                 fiveprime = init_seq[:max_inner_len-40]
                 frame_end = get_frame_end(len(fiveprime))
@@ -353,7 +393,8 @@ def find_overhang(end_pos,
                 else:
                     frag, rest_seq, overhang, overhang_pair = result
             init_seq = seq
-            
+            if not check_overhang_unique(overhang_list, overhang):
+                break
             
     if split_successful_tag:
         return frag, rest_seq, overhang, overhang_pair, init_seq
@@ -465,19 +506,23 @@ def split_sequences(designs,
     
     #split the sequences
     seq_num = 0
-    for name, seq in tqdm(designs.items()):
-        AA = protein_seqs[name]
+    for name, dna_seq in tqdm(designs.items()):
+        aa = protein_seqs[name]
+        
+        gene = Frag(frag_num=frag_num, dna_seq=dna_seq, max_len_5=max_len_5, max_inner_len=max_inner_len, max_len_3=max_len_3, min_len=min_oligo_len, aa_seq=aa)
+            
         #keep the original sequence
-        init_seq = seq
-        total_seq_len = len(seq)
+        #init_seq = seq.init_dna_seq
+        #total_seq_len = len(seq)
         cut_successful_flag = False
         not_unique_overhang = False
         
         try_times = 0
         while not cut_successful_flag:
             frag_seq = []
-            seq = init_seq
+            seq = gene.init_dna_seq
             for i in range(1, frag_num):
+                gene.cut_order = i
                 frag_num_left = frag_num - i
                 frag_min_len = count_frag_lenth(len(seq), 
                                                 i, 
@@ -488,6 +533,7 @@ def split_sequences(designs,
                 
                 #End_pos is the average length of each fragment.
                 end_pos = round((len(seq) + frag_num_left * 4 )/(frag_num_left+1))
+                gene.end_pos = end_pos
 
                 #find unique overhang
                 result = find_overhang(end_pos, 
@@ -498,7 +544,7 @@ def split_sequences(designs,
                                               frag_min_len, 
                                               overhang_list[i-1], 
                                               seq,
-                                              init_seq, 
+                                              gene.init_dna_seq, 
                                               seq_num, 
                                               frag_num,
                                               codons)
@@ -632,13 +678,15 @@ def main(args):
     while isinstance(result, bool):
         designs = shuffle_dict(designs)
         result = split_sequences(designs, 
-                                 frag_num, 
-                                 spool_barcode_list, 
-                                 subp_barc_idx, 
-                                 adapter_F, adapter_R, 
-                                 seq_barcode_list, 
-                                 max_oligo_size = args.max_oligo_length,
-                                 min_oligo_len = args.min_oligo_length)
+                                protein_seqs,
+                                codons, 
+                                frag_num, 
+                                spool_barcode_list, 
+                                subp_barc_idx, 
+                                adapter_F, adapter_R, 
+                                seq_barcode_list, 
+                                max_oligo_size = args.max_oligo_length,
+                                min_oligo_len = args.min_oligo_length)
     else:
         result_list, overhang_list = result
     
