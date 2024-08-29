@@ -1,0 +1,4 @@
+name               oligoA_5prime          oligoA_3prime          ligoB_5primer         oligoB_3prime     
+pETCON_TJ_1        GGGTCGGCTTCGCATATG     AAtcgtttcgcaggcATGG     GCGAgacttgtggccctTT    CTCGAGGGTGGAGGTTCC
+pETCON_TJ_2        GGGTCGGCTTCGCATATG     AAcgggtatgcatgcATGG     GCGActcagctgctcacTT    CTCGAGGGTGGAGGTTCC
+pETCON_TJ_3        GGGTCGGCTTCGCATATG     AAcgggcatcagaggATGG     GCGActtgatgtggcagTT    CTCGAGGGTGGAGGTTCC
