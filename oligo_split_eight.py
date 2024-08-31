@@ -70,6 +70,9 @@ class Frag(object):
                 
         return frag_min_len
     
+    def update_dna_seq(self):
+        self.dna_seq = self.init_dna_seq[len(self.init_dna_seq) - len(self.dna_seq):]
+    
 
 #function:
 def sort_by_length(input_dict):
@@ -382,17 +385,17 @@ def find_overhang(gene, overhang_list, codons, overhang_len = 4):
                     if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
                         split_successful_tag = True
                         break 
-                fiveprime = gene.init_seq[:gene.max_inner_len-40]
+                fiveprime = gene.init_dna_seq[:gene.max_inner_len-40]
                 frame_end = get_frame_end(len(fiveprime))
-                newseq = replace_codons(gene.init_seq,frame_end,40,codons)
-                gene.seq = gene.seq[:frame_end+1] + newseq + gene.seq[frame_end+1+len(newseq):]
+                newseq = replace_codons(gene.init_dna_seq,frame_end,40,codons)
+                gene.init_dna_seq = gene.init_dna_seq[:frame_end+1] + newseq + gene.init_dna_seq[frame_end+1+len(newseq):]
+                gene.update_dna_seq()
                 #assert str(Seq(seq, unambiguous_dna).translate()) == protein_seqs[design]
                 result = find_overhang_from_appropriate_range(gene, overhang_list)
                 if isinstance(result, bool):
                     break
                 else:
                     frag, rest_seq, overhang, overhang_pair = result
-            gene.init_seq = seq
             if not check_overhang_unique(overhang_list, overhang):
                 break
             
