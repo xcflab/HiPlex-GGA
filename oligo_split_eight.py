@@ -423,12 +423,15 @@ def add_spool_barcode_list(seq_name,
             frag_ad_list[name] = "not_split"
         else:
             if i == 0:
-                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + NcoI + seq_barcode[0] + NdeI + frag_seq[i] + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                if seq_barcode != '':
+                    seq_barcode = NcoI + seq_barcode[0]
+                    
+                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
                 if len(frag_ad) < 211 :
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + NcoI + seq_barcode[0] + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 elif len(frag_ad) < 251 :
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + NcoI + seq_barcode[0] + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgtaat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgtaat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
                 frag_ad_list[name] = frag_ad
                 
@@ -438,13 +441,15 @@ def add_spool_barcode_list(seq_name,
                     enzyme = BsmBI
                 else:
                     enzyme = BsaI
-                    
-                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + frag_seq[i] + XhoI + seq_barcode[1] + BamHI + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                if seq_barcode != '':
+                    seq_barcode = seq_barcode[1] + BamHI 
+                
+                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
                 if len(frag_ad) < 211:
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme + frag_seq[i] + XhoI + seq_barcode[1] + BamHI + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 elif len(frag_ad) <251:
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme + frag_seq[i] + XhoI + seq_barcode[1] + BamHI + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
                 frag_ad_list[name] = frag_ad
             
@@ -490,14 +495,17 @@ def split_sequences(designs,
     adapter_F_len = len( adapter_F ) #  the length of 5' adapter
     adapter_R_len = len( adapter_R ) #  the length of 3' adapter
     #sequence barcode length
-    seq_barc_len = len(seq_barcode_list[0][0]) #  the length of sequence barcode
+    if seq_barcode_list == None:
+        seq_barc_len = 0
+    else:
+        seq_barc_len = len(seq_barcode_list[0][0]) + 6 #  the length of sequence barcode
 
     #the length of the longest A fragment
-    max_len_5 = max_oligo_size - adapter_F_len - subp_barc_len_5 - 6 - seq_barc_len  - 6 - (subp_barc_in_len + 7) - adapter_R_len #  add the basi or not?
+    max_len_5 = max_oligo_size - adapter_F_len - subp_barc_len_5 - 6 - seq_barc_len - (subp_barc_in_len + 7) - adapter_R_len #  add the basi or not?
     #the length of the longest inner fragment
     max_inner_len = max_oligo_size - adapter_F_len - (subp_barc_in_len + 7) * 2 - adapter_R_len
     #the length of the longest last fragment
-    max_len_3 = max_oligo_size - adapter_F_len - (subp_barc_in_len + 7) - 6 - seq_barc_len - 6 - subp_barc_len_3 - adapter_R_len
+    max_len_3 = max_oligo_size - adapter_F_len - (subp_barc_in_len + 7) - 6 - seq_barc_len - subp_barc_len_3 - adapter_R_len
     
     #generate overhang list
     overhang_list = []
@@ -564,7 +572,10 @@ def split_sequences(designs,
         if not_unique_overhang:
             print("Oligo %s" %(name))
         else:
-            seq_barcode = seq_barcode_list[seq_num]
+            if seq_barcode_list == None:
+                seq_barcode = ''
+            else:
+                seq_barcode = seq_barcode_list[seq_num]
             alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
             len_dic = {}
             for i in range(frag_num):
@@ -654,7 +665,10 @@ def main(args):
     spool_barcode_list = read_subpool_barcode(spool_barc_fname, frag_num)
     
     # Get sequence barcodes ready
-    seq_barcode_list = read_sequence_barcode(seq_barc_fname, len(designs))
+    if seq_barc_fname == None:
+        seq_barcode_list = None
+    else:
+        seq_barcode_list = read_sequence_barcode(seq_barc_fname, len(designs))
     
     #split the sequences into oligos
     result = split_sequences(designs, 
@@ -701,7 +715,7 @@ if __name__ == '__main__':
     argparser.add_argument('--subpool_barcode_fname', type=str, default='./pool_subpools_barcode.txt',help='Name of file containing adapter sequences. Format: First line: column names, followed by lines: adapter_name fiveprime_5 fiveprime_3 threeprime_5 threeprime_3')
     argparser.add_argument('--adapter_f', type=str, default='FFFFFFFFFFFFFFFFFFFF',help='Forward adapter sequences. Default: ')
     argparser.add_argument('--adapter_r', type=str, default='RRRRRRRRRRRRRRRRRRRR',help='Reverse adapter sequences. Default: ')
-    argparser.add_argument('--sequence_barcode_fname', type=str, default='./sequence_barcode_list.txt',help='Name of file containing sequence barcode sequences. Format: First line: column names, followed by lines: fiveprime_5 threeprime_3')
+    argparser.add_argument('--sequence_barcode_fname', type=str, help='Name of file containing sequence barcode sequences. Format: First line: column names, followed by lines: fiveprime_5 threeprime_3')
     argparser.add_argument('--subp_barc_index', type=int, required=True,  help='What subpool barcode to use? starting at 1')
     argparser.add_argument('--max_oligo_length', type=int, default=300, help='Absolute max length of orderable oligo')
     argparser.add_argument('--min_oligo_length', type=int, default=251, help='Absolute min length of orderable oligo')
