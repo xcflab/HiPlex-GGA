@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Aug 28, 2024
 # Zhien Wu modified
-import __future__
+
 import numpy as np
 from tqdm import tqdm
 import sys
@@ -12,8 +12,8 @@ from Bio.Seq import Seq
 from multiprocessing import Pool
 
 #overhand_list
-#The best overhangs are included in overhangs_1st. The second good overhangs are included in bad_overhangs.
-overhangs_1st = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT', 'ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
+#The best overhangs are included in overhangs_good. The second good overhangs are included in bad_overhangs.
+overhangs_good = ['TCAA', 'ATAA', 'TAGA', 'GTTA', 'AGGG', 'CCTA', 'AAGA', 'TCCA', 'AGAA', 'AAAG', 'ACAT', 'GGGA', 'GCAA', 'TAAA', 'TGAA', 'GACA', 'ACGA', 'GGTA', 'ATCC', 'ATTG', 'CTAC', 'AAGC', 'CATC', 'ACTC', 'CACA', 'CTAA', 'GAAA', 'AGAC', 'AGCA', 'CGTA', 'ACCG', 'CAGA', 'AACT', 'AATA', 'GCAC', 'CCAG', 'CAAG', 'AAAT', 'ATCA', 'CAGG', 'CATA', 'GGAA', 'AGGA', 'ACGC', 'ATAC', 'CTCA', 'GCCA', 'CCGA', 'ACAG', 'AATC', 'CAGC', 'AAAA', 'AGTG', 'CGCA', 'AACG', 'GAGA', 'ACTA', 'TACA', 'ATGA', 'CGAC', 'CGAA', 'AGCC']
 bad_overhangs = ['GGGG', 'CCCC', 'GGGC', 'GCCC', 'GGCG', 'CGCC', 'GCGG', 'CCGC', 'CGGG', 'CCCG', 'GGCC', 'CCGG', 'GCCG', 'CGGC', 'CGCG', 'GCGC', 'ATTA', 'TAAT']#too much?
 
 #enzyme_list
@@ -71,9 +71,9 @@ class Frag(object):
         return frag_min_len
     
     def update_dna_seq(self):
-        self.dna_seq = self.init_dna_seq[len(self.init_dna_seq) - len(self.dna_seq):]
+        new_dna_seq_begin = len(self.init_dna_seq) - len(self.dna_seq)
+        self.dna_seq = self.init_dna_seq[new_dna_seq_begin:]
     
-
 #function:
 def sort_by_length(input_dict):
     """
@@ -114,34 +114,19 @@ def read_sequence_barcode(infile, seq_num):
         seq_barcode_list.append(l)
     return seq_barcode_list
 
-def count_frag_lenth(seq_len, frag_th, frag_num_left, max_inner_len=220, max_last_len=210, max_fist_len=210, min_len=115):
-    #This function is used to calculate the minimum length of the fragment.
-    
-    frag_min_len = seq_len - (max_inner_len - 4) * ( frag_num_left - 1 ) - ( max_last_len - 4)
-    
-    if frag_min_len < min_len:
-        frag_min_len = min_len
-    
-    if frag_th == 1:
-        assert frag_min_len <= max_fist_len
-    else:
-        assert frag_min_len <= max_inner_len
-
-    if frag_num_left == 1:  #haven't used
-        last_len = seq_len - max_inner_len
-        if last_len < min_len:
-            max_inner_len = seq_len - min_len * ( frag_num_left - 1 )
-            
-    return frag_min_len
-
 def check_overhang_unique(end_list, to_check_end):
-    # 检查粘性末端是否唯一
+    """
+    Check whether the overhang is unique
+    """
     flag = True
     if to_check_end in end_list:
         flag = False
     return flag
 
 def split_with_pos(sequence, pos, overhang_len=4):
+    """
+    Split the sequence with the position
+    """
     end_len_1 = overhang_len
     seq_1 = sequence[0:pos]
     seq_2 = sequence[pos-end_len_1:]
@@ -193,157 +178,10 @@ def replace_codons(s,frame_end,overlap_len,codons):
                 sh += s[p + i]
     return sh
 
-def find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len):
-    reasonable_tag = True
-    
-    max_len = max_len_5 if i == 1 else max_inner_len
-    if max_len < end_pos:
-        reasonable_tag = False
-        return reasonable_tag
-    else:
-        for j in range(end_pos, max_len + 1):
-            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
-            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                break
-        
-        #If there is no unique overhang from end_pos to max_len, return the last overhang
-        return frag, rest_seq, overhang, overhang_pair
-   
-def find_overhang_from_list_min(end_pos, frag_min_len, overhang_list, seq, overhang_len):
-    reasonable_tag = True
-    
-    if frag_min_len > end_pos:
-        reasonable_tag = False
-        return reasonable_tag
-    else:
-        for j in range(end_pos, frag_min_len - 1, -1):
-            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
-            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                break
-        
-        #If there is no unique overhang from end_pos to max_len, return the last overhang
-        return frag, rest_seq, overhang, overhang_pair
-
-def find_overhang_from_2nd(end_pos, i, max_len_5, max_inner_len, frag_min_len, overhang_list, seq, overhang_len):
-    reasonable_tag = True
-    
-    max_len = max_len_5 if i == 1 else max_inner_len
-    if max_len < end_pos:
-        reasonable_tag = False
-        return reasonable_tag
-    else:
-        for j in range(end_pos, max_len + 1):
-            frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
-            if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
-                return frag, rest_seq, overhang, overhang_pair
-                break
-            #If there is no unique overhang from end_pos to max_len, overhang is the last overhang
-            
-        while overhang in bad_overhangs or not check_overhang_unique(overhang_list, overhang):
-            if end_pos < frag_min_len:
-                reasonable_tag = False
-                return reasonable_tag
-                break
-            for j in range(frag_min_len, end_pos):
-                frag, rest_seq, overhang, overhang_pair = split_with_pos(seq, j, overhang_len)
-                if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
-                    return frag, rest_seq, overhang, overhang_pair
-                    break
-                
-                #If there is no unique overhang, return the resonable tag(True)
-                return reasonable_tag
-
-def find_unique_overhang(end_pos, 
-                         i, 
-                         max_len_5, 
-                         max_len_3, 
-                         max_inner_len, 
-                         frag_min_len, 
-                         overhang_list, 
-                         seq, 
-                         seq_num, 
-                         frag_num, 
-                         random_choice = None, 
-                         overhang_len = 4):
-    
-    split_successful_tag = False
-    
-    while not split_successful_tag:
-        #Randomly choose to start from max_len or min_len. If random_choice is 0, start from max_len. If random_choice is 1, start from min_len. While random_choice has been chosen, it will be changed into the other one.
-        if random_choice == None:
-            random_choice = np.random.randint(0,2)
-        elif random_choice == 0:
-            random_choice = 1
-        else:
-            random_choice = 0
-            
-        if random_choice == 0: 
-            #Choose overhang from end_pos to max_len
-            result = find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
-            if isinstance(result, bool):
-                break
-            else:
-                frag, rest_seq, overhang, overhang_pair = result
-                
-            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                split_successful_tag = True
-            else:
-                #If there is no unique overhang from end_pos to max_len, choose from min_len to end_pos
-                result = find_overhang_from_list_min(end_pos, frag_min_len, overhang_list, seq, overhang_len)
-                if isinstance(result, bool):
-                    break
-                else:
-                    frag, rest_seq, overhang, overhang_pair = result
-                    
-                #If there is no unique overhang from 1st list, choose from min_len to max_len      
-                if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                    split_successful_tag = True
-                else:
-                    result = find_overhang_from_2nd(end_pos, i, max_len_5, max_inner_len, frag_min_len, overhang_list, seq, overhang_len)
-                    if isinstance(result, bool):
-                        break
-                    else:
-                        frag, rest_seq, overhang, overhang_pair = result
-                        split_successful_tag = True
-                
-        else:
-            #Choose overhang from min_len to end_pos
-            result = find_overhang_from_list_min(end_pos, frag_min_len, overhang_list, seq, overhang_len)
-            if isinstance(result, bool):
-                break
-            else:
-                frag, rest_seq, overhang, overhang_pair = result
-                
-            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                split_successful_tag = True
-            else:
-            #If there is no unique overhang from min_len to end_pos, choose from end_pos to max_len
-                result = find_overhang_from_list_max(end_pos, i, max_len_5, max_inner_len, overhang_list, seq, overhang_len)
-                if isinstance(result, bool):
-                    break
-                else:
-                    frag, rest_seq, overhang, overhang_pair = result
-                    
-                if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-                    split_successful_tag = True
-                else:
-                    #If there is no unique overhang from 1st list, choose from min_len to max_len
-                    result = find_overhang_from_2nd(end_pos, i, max_len_5, max_inner_len, frag_min_len, overhang_list, seq, overhang_len)
-                    if isinstance(result, bool):
-                        break
-                    else:
-                        frag, rest_seq, overhang, overhang_pair = result
-                        if check_overhang_unique(overhang_list, overhang):
-                            split_successful_tag = True
-                        else:
-                            split_successful_tag = False
-            
-    if split_successful_tag:
-        return frag, rest_seq, overhang, overhang_pair, random_choice
-    else:
-        return split_successful_tag
-    
-def find_overhang_from_appropriate_range(gene, overhang_list):
+def find_overhang_from_appropriate_range(gene, overhang_list, trial = -1):
+    """
+    This function is used to find the unique overhang from the appropriate range.
+    """
     reasonable_tag = True
     
     max_len = gene.max_len_5 if gene.cut_order == 1 else gene.max_inner_len
@@ -353,49 +191,67 @@ def find_overhang_from_appropriate_range(gene, overhang_list):
     else:
         for j in range(gene.end_pos, max_len + 1):
             frag, rest_seq, overhang, overhang_pair = split_with_pos(gene.dna_seq, j, gene.overhang_len)
-            if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+            if overhang in overhangs_good and check_overhang_unique(overhang_list, overhang):
                 break
+            if trial > 499:
+                if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
+                    break
         
         #If there is no unique overhang from end_pos to max_len, return the last overhang
         return frag, rest_seq, overhang, overhang_pair
     
 def find_overhang(gene, overhang_list, codons, overhang_len = 4):
+    """
+    This function is used to find the unique overhang for the fragment.
+    """
+    
     split_successful_tag = False
-    if gene.cut_order == 1 and gene.end_pos >= gene.max_len_5:
+    # If the 5' end fragment is shorter than the inner fragments, and this is the first cutting operation,
+    # and end_pos is greater than or equal to the maximum length of the 5' end fragment,
+    # then adjust end_pos to the minimum fragment length to ensure enough space for the 5' end fragment.
+    if gene.max_len_5 < gene.max_inner_len and gene.cut_order == 1 and gene.end_pos >= gene.max_len_5:
         gene.end_pos = gene.frag_min_len
+        
+    # In order to ensure the rest fragments have enough space, adjust end_pos to the minimum fragment length.
     if gene.end_pos < gene.frag_min_len:
         gene.end_pos = gene.frag_min_len
+        
+    # Find the unique overhang
     while not split_successful_tag:
         result = find_overhang_from_appropriate_range(gene, overhang_list)
         if isinstance(result, bool):
             break
         else:
             frag, rest_seq, overhang, overhang_pair = result
-                
-        if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
-            split_successful_tag = True
-        elif overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
+        
+        #Check whether the overhang is unique and good enough, if not, redesign the dna sequence
+        if overhang in overhangs_good and check_overhang_unique(overhang_list, overhang):
             split_successful_tag = True
         else:
             for trial in range(1000):
-                if overhang in overhangs_1st and check_overhang_unique(overhang_list, overhang):
+                #Check whether the overhang is acceptable
+                if overhang in overhangs_good and check_overhang_unique(overhang_list, overhang):
                     split_successful_tag = True
                     break
                 if trial > 499:
                     if overhang not in bad_overhangs and check_overhang_unique(overhang_list, overhang):
                         split_successful_tag = True
                         break 
-                fiveprime = gene.init_dna_seq[:gene.max_inner_len-40]
-                frame_end = get_frame_end(len(fiveprime))
-                newseq = replace_codons(gene.init_dna_seq,frame_end,40,codons)
-                gene.init_dna_seq = gene.init_dna_seq[:frame_end+1] + newseq + gene.init_dna_seq[frame_end+1+len(newseq):]
-                gene.update_dna_seq()
-                #assert str(Seq(seq, unambiguous_dna).translate()) == protein_seqs[design]
-                result = find_overhang_from_appropriate_range(gene, overhang_list)
+                #If the overhang is not accepted, redesign the dna sequence
+                split_posi = len(gene.init_dna_seq) - len(gene.dna_seq) + gene.end_pos # the position of redesign dna sequence begins
+                fiveprime = gene.init_dna_seq[:split_posi] # the 5' end of the dna sequence
+                frame_end = get_frame_end(len(fiveprime)) # the frame end of the dna sequence
+                change_len = gene.max_len_5 - gene.end_pos if gene.cut_order == 1 else gene.max_inner_len - gene.end_pos # the length of the dna sequence that needs to be redesigned
+                newseq = replace_codons(gene.init_dna_seq,frame_end,change_len,codons) # the redesigned dna sequence
+                gene.init_dna_seq = gene.init_dna_seq[:frame_end+1] + newseq + gene.init_dna_seq[frame_end+1+len(newseq):] # the new dna sequence
+                gene.update_dna_seq() # update the dna sequence
+                #Find the unique overhang
+                result = find_overhang_from_appropriate_range(gene, overhang_list, trial)
                 if isinstance(result, bool):
                     break
                 else:
                     frag, rest_seq, overhang, overhang_pair = result
+            #After 1000 trials, if the overhang is still not unique, break the loop
             if not check_overhang_unique(overhang_list, overhang):
                 break
             
@@ -412,8 +268,10 @@ def add_spool_barcode_list(seq_name,
                            adapter_F, 
                            adapter_R, 
                            seq_barcode):
+    """
+    Add the spool barcode to the fragments.
+    """
     
-    # It can add adapter to frags
     alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
     frag_ad_list = {}
     
@@ -423,37 +281,43 @@ def add_spool_barcode_list(seq_name,
             frag_ad_list[name] = "not_split"
         else:
             if i == 0:
+                # the first fragment
                 if seq_barcode != '':
                     seq_barcode = NcoI + seq_barcode[0]
-                    
-                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
+                before_compelment = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai
+                after_compelment = spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R 
+                
+                frag_ad = before_compelment + after_compelment
                 if len(frag_ad) < 211 :
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + bsai + after_compelment
                 elif len(frag_ad) < 251 :
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + seq_barcode + NdeI + frag_seq[i] + bsai + 'atgagccatattcaacgggaaacgtcttgctgtaat' + bsai + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgtaat' + bsai + after_compelment
                 
                 frag_ad_list[name] = frag_ad
                 
             elif i == frag_num - 1:
-                #the last fragment
+                # the last fragment
                 if i % 2 == 0:
                     enzyme = BsmBI
                 else:
                     enzyme = BsaI
                 if seq_barcode != '':
                     seq_barcode = seq_barcode[1] + BamHI 
+                    
+                before_compelment = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme
+                after_compelment = frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
-                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
-                
+                frag_ad = before_compelment + after_compelment
                 if len(frag_ad) < 211:
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme + after_compelment
                 elif len(frag_ad) <251:
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme + frag_seq[i] + XhoI + seq_barcode + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme + after_compelment
                 
                 frag_ad_list[name] = frag_ad
             
             else:
+                # the inner fragments
                 if i % 2 == 0:
                     enzyme_5 = BsmBI
                     enzyme_3 = bsai
@@ -461,12 +325,14 @@ def add_spool_barcode_list(seq_name,
                     enzyme_5 = BsaI
                     enzyme_3 = bsmbi
                 
-                frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme_5 + frag_seq[i] + enzyme_3 + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                before_compelment = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme_5 + frag_seq[i] + enzyme_3
+                after_compelment = spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
                 
+                frag_ad = before_compelment + after_compelment
                 if len(frag_ad) < 211:
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme_5 + frag_seq[i] + enzyme_3 + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme_3 + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgcgattaaattccaacatggatgctgatttatatgggtatataat' + enzyme_3 + after_compelment
                 elif len(frag_ad) < 251 :
-                    frag_ad = adapter_F + spool_barcode_list[2 * i][subp_barc_idx] + enzyme_5 + frag_seq[i] + enzyme_3 + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme_3 + spool_barcode_list[2*i + 1][subp_barc_idx] + adapter_R
+                    frag_ad = before_compelment + 'atgagccatattcaacgggaaacgtcttgctgtaat' + enzyme_3 + after_compelment
                 
                 frag_ad_list[name] = frag_ad
  
@@ -483,7 +349,9 @@ def split_sequences(designs,
                     seq_barcode_list, 
                     max_oligo_size=300,
                     min_oligo_len=250):
-    
+    """
+    This function is used to split the sequences into oligos.
+    """
     #Check if the size of subpool is larger than 100
     assert len(designs) < 100
     
@@ -519,30 +387,26 @@ def split_sequences(designs,
     seq_num = 0
     
     designs = sort_by_length(designs)
-    for name, dna_seq in tqdm(designs.items()):
+    for name, init_dna_seq in tqdm(designs.items()):
+        # Sequence initialization
         aa = protein_seqs[name]
-        
-        gene = Frag(frag_num=frag_num, dna_seq=dna_seq, max_len_5=max_len_5, max_inner_len=max_inner_len, max_len_3=max_len_3, min_len=min_oligo_len, aa_seq=aa)
-            
-        #keep the original sequence
-        #init_seq = seq.init_dna_seq
-        #total_seq_len = len(seq)
+        gene = Frag(frag_num=frag_num, dna_seq=init_dna_seq, max_len_5=max_len_5, max_inner_len=max_inner_len, max_len_3=max_len_3, min_len=min_oligo_len, aa_seq=aa)
+
         cut_successful_flag = False
         not_unique_overhang = False
         
         try_times = 0
         while not cut_successful_flag:
             frag_seq = []
-            seq = gene.init_dna_seq
+            gene.dna_seq = gene.init_dna_seq
             for i in range(1, frag_num):
                 gene.cut_order = i
                 frag_num_left = frag_num - i
                 gene.frag_min_len = gene.count_frag_lenth(i)
-                #End_pos is the average length of each fragment.
-                gene.end_pos = round((len(seq) + frag_num_left * 4 )/(frag_num_left+1))
+                gene.end_pos = round((len(gene.dna_seq) + frag_num_left * 4 )/(frag_num_left+1))#End_pos is the average length of each fragment.
 
                 #find unique overhang
-                result = find_overhang(gene, overhang_list, codons, overhang_len = 4)
+                result = find_overhang(gene, overhang_list[i-1], codons, overhang_len = 4)
                 
                 if isinstance(result, bool):
                     #can't find unique overhang, need to re-split
@@ -555,11 +419,9 @@ def split_sequences(designs,
                     frag_seq.append(frag)
                     if i == frag_num - 1:
                         frag_seq.append(rest_seq)
-                    
                     #Add overhang to the list
                     overhang_list[i-1].append(overhang)
-                    overhang_list[i-1].append(overhang_pair)
-                    seq = rest_seq 
+                    overhang_list[i-1].append(overhang_pair) 
 
             #If the sequence can't be split after 5 times, skip this sequence
             if isinstance(result, bool) and try_times < 5:
@@ -572,15 +434,13 @@ def split_sequences(designs,
         if not_unique_overhang:
             print("Oligo %s" %(name))
         else:
+            # optional: add sequence barcode
             if seq_barcode_list == None:
                 seq_barcode = ''
             else:
                 seq_barcode = seq_barcode_list[seq_num]
-            alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
-            len_dic = {}
-            for i in range(frag_num):
-                len_name = alphabet[i]+ "_len"
-                len_dic[len_name] = len(frag_seq[i])
+           
+           # Add adapters and spool barcodes 
             frag_list = add_spool_barcode_list(name, 
                                                frag_seq, 
                                                spool_barcode_list, 
@@ -719,7 +579,6 @@ if __name__ == '__main__':
     argparser.add_argument('--subp_barc_index', type=int, required=True,  help='What subpool barcode to use? starting at 1')
     argparser.add_argument('--max_oligo_length', type=int, default=300, help='Absolute max length of orderable oligo')
     argparser.add_argument('--min_oligo_length', type=int, default=251, help='Absolute min length of orderable oligo')
-    argparser.add_argument('--enzyme_num', type=int, default=1, choices=[1, 2], help='The number of how many enzymes.')
     argparser.add_argument('--frag_num', type=int, default=3, help='The number of how many fragments you want to split.')
     argparser.add_argument('-codontable_fname', type=str,default='./codontable.tab',help='Codon table to use')
     argparser.add_argument('-nproc', type=int,default=1,help='Number of processors to use. Must be in the same node (DIGs: -cX -N1 AFAIK)')
