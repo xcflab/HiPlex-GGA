@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.log
+nohup.out
+*_output.log
+slurm-*.out
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+examples/**/changed.tsv
+examples/**/oligos.tab
+examples/**/oligos_with_adapters.tab
+
