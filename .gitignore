@@ -11,4 +11,4 @@ dist/
 examples/**/changed.tsv
 examples/**/oligos.tab
 examples/**/oligos_with_adapters.tab
-
+*.bak

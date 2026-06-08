@@ -52,8 +52,30 @@ oligos-gg split \
   --adapter-f ccactccattcgtatcccacgtg \
   --adapter-r cggaatggctaggctgtacggat \
   --seed 1 \
-  --output oligos.tab
+  --output oligos.tab \
+  --write-intermediate-outputs
 ```
+
+With `--output oligos.tab`, intermediate outputs are written as
+`oligos_naked_fragments.tab` and `oligos_whole_dna.tsv`. To override those
+paths explicitly:
+
+```bash
+oligos-gg split ... \
+  --output final_oligos.tab \
+  --write-intermediate-outputs \
+  --naked-output custom_naked_fragments.tab \
+  --whole-dna-output custom_whole_dna.tsv
+```
+
+By default, `split` may use synonymous codon redesign through `replace_codons`
+to search for acceptable and unique overhangs. To disable this behavior:
+
+```bash
+oligos-gg split ... --disable-replace-codons
+```
+
+The alias `--no-codon-redesign` is also accepted.
 
 ### Add adapters to naked fragments
 
