@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import random
 import sys
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from .io import (
     read_designs,
     read_sequence_barcodes,
     read_subpool_barcodes,
+    write_fragment_table,
+    write_name_sequence_table,
     write_oligo_table,
 )
 from .sequence_utils import find_new_codon, translate
@@ -40,6 +43,14 @@ BAD_OVERHANGS = [
     "CGGG", "CCCG", "GGCC", "CCGG", "GCCG", "CGGC", "CGCG", "GCGC",
     "ATTA", "TAAT",
 ]
+
+
+@dataclass
+class SplitOutputs:
+    final_oligos: dict[str, dict[str, str]]
+    naked_fragments: dict[str, list[str]]
+    whole_dna: dict[str, str]
+
 
 RESTRICTION_SITES = {
     "NdeI": "CATATG",
@@ -266,6 +277,7 @@ def find_overhang(
     overhang_list: list[str | Seq],
     codons: dict[str, list[str]],
     overhang_len: int = 4,
+    enable_replace_codons: bool = True,
 ) -> bool | tuple[str, str, Seq, Seq]:
     split_successful_tag = False
     if gene.max_len_5 < gene.max_inner_len and gene.cut_order == 1 and gene.end_pos >= gene.max_len_5:
@@ -285,6 +297,8 @@ def find_overhang(
 
         if overhang_str in GOOD_OVERHANGS and check_overhang_unique(overhang_list, overhang):
             split_successful_tag = True
+        elif not enable_replace_codons:
+            break
         else:
             for trial in range(1000):
                 overhang_str = str(overhang)
@@ -337,7 +351,8 @@ def split_sequences(
     sequence_barcodes: list[list[str]] | None,
     max_oligo_size: int = 300,
     min_oligo_len: int = 250,
-) -> bool | tuple[dict[str, dict[str, str]], list[list[str | Seq]]]:
+    enable_replace_codons: bool = True,
+) -> bool | tuple[SplitOutputs, list[list[str | Seq]]]:
     if len(designs) >= 100:
         raise ValueError("Each subpool should contain fewer than 100 designs")
 
@@ -362,6 +377,8 @@ def split_sequences(
 
     overhang_list: list[list[str | Seq]] = [[] for _ in range(1, frag_num)]
     split_result: dict[str, dict[str, str]] = {}
+    naked_fragment_result: dict[str, list[str]] = {}
+    whole_dna_result: dict[str, str] = {}
 
     seq_num = 0
     designs = sort_by_length(designs)
@@ -389,7 +406,13 @@ def split_sequences(
                 gene.frag_min_len = gene.count_frag_lenth(cut_order=i, min_len=135)
                 gene.end_pos = round((len(gene.dna_seq) + frag_num_left * 4) / (frag_num_left + 1))
 
-                result = find_overhang(gene, overhang_list[i - 1], codons, overhang_len=4)
+                result = find_overhang(
+                    gene,
+                    overhang_list[i - 1],
+                    codons,
+                    overhang_len=4,
+                    enable_replace_codons=enable_replace_codons,
+                )
                 if isinstance(result, bool):
                     try_times += 1
                     break
@@ -412,6 +435,12 @@ def split_sequences(
         if not_unique_overhang:
             print(f"Oligo {name}")
         else:
+            naked_fragment_result[name] = frag_seq
+            dna_seq = ""
+            for i, fragment in enumerate(frag_seq):
+                dna_seq += fragment if i == 0 else fragment[4:]
+            whole_dna_result[name] = dna_seq
+
             seq_barcode: list[str] | str = "" if sequence_barcodes is None else sequence_barcodes[seq_num]
             frag_list = add_adapter_list(
                 name,
@@ -435,7 +464,7 @@ def split_sequences(
     if len(split_result) < len(designs) or not_suitable_length_flag:
         print("The split process failed because some genes are not splited. Try again!")
         return False
-    return split_result, overhang_list
+    return SplitOutputs(split_result, naked_fragment_result, whole_dna_result), overhang_list
 
 
 def split_design_file(
@@ -450,7 +479,9 @@ def split_design_file(
     max_oligo_length: int,
     min_oligo_length: int,
     seed: int | None = None,
-) -> dict[str, dict[str, str]]:
+    enable_replace_codons: bool = True,
+    return_intermediates: bool = False,
+) -> dict[str, dict[str, str]] | SplitOutputs:
     if seed is not None:
         random.seed(seed)
 
@@ -475,8 +506,18 @@ def split_design_file(
         sequence_barcodes,
         max_oligo_size=max_oligo_length,
         min_oligo_len=min_oligo_length,
+        enable_replace_codons=enable_replace_codons,
     )
+    split_attempts = 1
+    max_split_attempts = 100
     while isinstance(result, bool):
+        split_attempts += 1
+        if split_attempts > max_split_attempts:
+            raise ValueError(
+                f"Unable to split all sequences after {max_split_attempts} attempts. "
+                "Try changing fragment count, oligo length limits, barcode lengths, "
+                "or re-enable codon replacement."
+            )
         designs = shuffle_dict(designs)
         result = split_sequences(
             designs,
@@ -490,14 +531,38 @@ def split_design_file(
             sequence_barcodes,
             max_oligo_size=max_oligo_length,
             min_oligo_len=min_oligo_length,
+            enable_replace_codons=enable_replace_codons,
         )
-    result_list, _overhang_list = result
-    return result_list
+    split_outputs, _overhang_list = result
+    if return_intermediates:
+        return split_outputs
+    return split_outputs.final_oligos
+
+
+def default_intermediate_output_paths(output_path: str | Path) -> tuple[Path, Path]:
+    output_path = Path(output_path)
+    output_prefix = output_path.with_suffix("") if output_path.suffix else output_path
+    return (
+        output_prefix.with_name(f"{output_prefix.name}_naked_fragments.tab"),
+        output_prefix.with_name(f"{output_prefix.name}_whole_dna.tsv"),
+    )
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--input", "--input-list", "--input_list", dest="input", required=True)
     parser.add_argument("--output", "-o", required=True)
+    parser.add_argument(
+        "--write-intermediate-outputs",
+        "--write-intermediates",
+        dest="write_intermediate_outputs",
+        action="store_true",
+        help=(
+            "Write naked fragments and reconstructed whole DNA using the --output "
+            "prefix unless --naked-output or --whole-dna-output is supplied."
+        ),
+    )
+    parser.add_argument("--naked-output", "--naked_output", dest="naked_output")
+    parser.add_argument("--whole-dna-output", "--whole_dna_output", dest="whole_dna_output")
     parser.add_argument("--subpool-barcodes", "--subpool_barcode_fname", dest="subpool_barcodes", required=True)
     parser.add_argument("--adapter-f", "--adapter_f", dest="adapter_f", default="F" * 20)
     parser.add_argument("--adapter-r", "--adapter_r", dest="adapter_r", default="R" * 20)
@@ -508,6 +573,14 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--frag-num", "--frag_num", dest="frag_num", type=int, default=3)
     parser.add_argument("--codon-table", "--codontable_fname", dest="codon_table")
     parser.add_argument("--seed", type=int, help="Random seed for reproducible examples/tests.")
+    parser.add_argument(
+        "--disable-replace-codons",
+        "--no-codon-redesign",
+        dest="enable_replace_codons",
+        action="store_false",
+        default=True,
+        help="Disable synonymous codon redesign when searching for acceptable overhangs.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -532,11 +605,26 @@ def run_from_args(args: argparse.Namespace) -> int:
             max_oligo_length=args.max_oligo_length,
             min_oligo_length=args.min_oligo_length,
             seed=args.seed,
+            enable_replace_codons=args.enable_replace_codons,
+            return_intermediates=True,
         )
     except ValueError as exc:
         print(exc)
         return 1
-    write_oligo_table(result, args.output)
+    write_oligo_table(result.final_oligos, args.output)
+
+    naked_output = args.naked_output
+    whole_dna_output = args.whole_dna_output
+    if getattr(args, "write_intermediate_outputs", False):
+        default_naked_output, default_whole_dna_output = default_intermediate_output_paths(
+            args.output
+        )
+        naked_output = naked_output or default_naked_output
+        whole_dna_output = whole_dna_output or default_whole_dna_output
+    if naked_output:
+        write_fragment_table(result.naked_fragments, naked_output)
+    if whole_dna_output:
+        write_name_sequence_table(result.whole_dna, whole_dna_output)
     return 0
 
 

@@ -82,6 +82,12 @@ def write_oligo_table(records: dict[str, dict[str, str]], path: str | Path) -> N
                 handle.write(f"{name}, {seq}\n")
 
 
+def write_fragment_table(records: dict[str, list[str]], path: str | Path) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        for name, fragments in records.items():
+            handle.write(f"{name}, {json.dumps(fragments)}\n")
+
+
 def read_fragment_table(path: str | Path) -> dict[str, list[str]]:
     """Read naked fragments from JSON list or historical Python-list format."""
     fragments: dict[str, list[str]] = {}
