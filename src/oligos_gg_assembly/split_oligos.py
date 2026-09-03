@@ -35,13 +35,14 @@ GOOD_OVERHANGS = [
     "AACT", "AATA", "GCAC", "CCAG", "CAAG", "AAAT", "ATCA", "CAGG",
     "CATA", "GGAA", "AGGA", "ACGC", "ATAC", "CTCA", "GCCA", "CCGA",
     "ACAG", "AATC", "CAGC", "AAAA", "AGTG", "CGCA", "AACG", "GAGA",
-    "ACTA", "TACA", "ATGA", "CGAC", "CGAA", "AGCC",
+    "ACTA", "TACA", "ATGA", "CGAC", "CGAA", "AGCC"
 ]
 
 BAD_OVERHANGS = [
     "GGGG", "CCCC", "GGGC", "GCCC", "GGCG", "CGCC", "GCGG", "CCGC",
     "CGGG", "CCCG", "GGCC", "CCGG", "GCCG", "CGGC", "CGCG", "GCGC",
-    "ATTA", "TAAT",
+    "ATTA", "TAAT", "AATT", "ACGT", "AGCT", "ATAT", "CATG", "CTAG",
+    "GATC", "GTAC", "TATA", "TCGA", "TGCA", "TTAA"
 ]
 
 
@@ -353,8 +354,8 @@ def split_sequences(
     min_oligo_len: int = 250,
     enable_replace_codons: bool = True,
 ) -> bool | tuple[SplitOutputs, list[list[str | Seq]]]:
-    if len(designs) >= 100:
-        raise ValueError("Each subpool should contain fewer than 100 designs")
+    if len(designs) >= 96:
+        raise ValueError("Each subpool should contain fewer than 96 designs")
 
     subp_barc_5_len = len(subpool_barcodes[0][subpool_index])
     subp_barc_3_len = len(subpool_barcodes[-1][subpool_index])
