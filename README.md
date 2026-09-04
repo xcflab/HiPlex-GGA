@@ -62,8 +62,8 @@ be checked by translation.
 ```bash
 oligos-gg split \
   --input examples/02_split_4_fragments/input.tsv \
-  --subpool-barcodes examples/02_split_4_fragments/subpool_barcodes.tsv \
-  --sequence-barcodes examples/02_split_4_fragments/sequence_barcodes.tsv \
+  --subpool-barcodes examples/02_split_4_fragments/subpool_barcode_list_250410.tsv \
+  --sequence-barcodes examples/02_split_4_fragments/sequence_barcode_13bp_96pairs_list_250506.tsv \
   --subpool-index 1 \
   --frag-num 4 \
   --adapter-f ccactccattcgtatcccacgtg \
@@ -131,8 +131,8 @@ step.
 ```bash
 oligos-gg add-adapters \
   --input examples/04_add_adapters/naked_fragments.tab \
-  --subpool-barcodes examples/04_add_adapters/subpool_barcodes.tsv \
-  --sequence-barcodes examples/04_add_adapters/sequence_barcodes.tsv \
+  --subpool-barcodes examples/04_add_adapters/subpool_barcode_list_250410.tsv \
+  --sequence-barcodes examples/04_add_adapters/sequence_barcode_13bp_96pairs_list_250506.tsv \
   --subpool-index 1 \
   --frag-num 4 \
   --adapter-f ccactccattcgtatcccacgtg \
