@@ -8,10 +8,6 @@ The package supports:
 - splitting coding DNA sequences into Golden Gate fragments;
 - adding pool adapters, subpool barcodes, sequence barcodes, and enzyme sites.
 
-This public release focuses only on oligo / Golden Gate assembly design. It does
-not include real experimental datasets, NGS/PacBio analysis, DNWorks batch
-pipelines, or overlap PCR / two-oligo assembly workflows.
-
 ## Installation
 
 Clone the repository and install it into a Python environment:
