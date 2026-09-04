@@ -8,10 +8,6 @@ The package supports:
 - splitting coding DNA sequences into Golden Gate fragments;
 - adding pool adapters, subpool barcodes, sequence barcodes, and enzyme sites.
 
-This public release focuses only on oligo / Golden Gate assembly design. It does
-not include real experimental datasets, NGS/PacBio analysis, DNWorks batch
-pipelines, or overlap PCR / two-oligo assembly workflows.
-
 ## Installation
 
 Clone the repository and install it into a Python environment:
@@ -62,8 +58,8 @@ be checked by translation.
 ```bash
 oligos-gg split \
   --input examples/02_split_4_fragments/input.tsv \
-  --subpool-barcodes examples/02_split_4_fragments/subpool_barcodes.tsv \
-  --sequence-barcodes examples/02_split_4_fragments/sequence_barcodes.tsv \
+  --subpool-barcodes examples/02_split_4_fragments/subpool_barcode_list_250410.tsv \
+  --sequence-barcodes examples/02_split_4_fragments/sequence_barcode_13bp_96pairs_list_250506.tsv \
   --subpool-index 1 \
   --frag-num 4 \
   --adapter-f ccactccattcgtatcccacgtg \
@@ -131,8 +127,8 @@ step.
 ```bash
 oligos-gg add-adapters \
   --input examples/04_add_adapters/naked_fragments.tab \
-  --subpool-barcodes examples/04_add_adapters/subpool_barcodes.tsv \
-  --sequence-barcodes examples/04_add_adapters/sequence_barcodes.tsv \
+  --subpool-barcodes examples/04_add_adapters/subpool_barcode_list_250410.tsv \
+  --sequence-barcodes examples/04_add_adapters/sequence_barcode_13bp_96pairs_list_250506.tsv \
   --subpool-index 1 \
   --frag-num 4 \
   --adapter-f ccactccattcgtatcccacgtg \
