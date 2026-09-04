@@ -3,8 +3,8 @@
 ```bash
 oligos-gg split \
   --input examples/02_split_4_fragments/input.tsv \
-  --subpool-barcodes examples/02_split_4_fragments/subpool_barcodes.tsv \
-  --sequence-barcodes examples/02_split_4_fragments/sequence_barcodes.tsv \
+  --subpool-barcodes examples/02_split_4_fragments/subpool_barcode_list_250410.tsv \
+  --sequence-barcodes examples/02_split_4_fragments/sequence_barcode_13bp_96pairs_list_250506.tsv \
   --subpool-index 1 \
   --frag-num 4 \
   --adapter-f ccactccattcgtatcccacgtg \
