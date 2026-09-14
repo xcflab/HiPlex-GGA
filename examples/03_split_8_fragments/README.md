@@ -20,5 +20,5 @@ files are `./tmp/split8_s.tab`, `./tmp/split8_s_naked_fragments.tab`, and
 `./tmp/split8_s_whole_dna.tsv`. Use `--mute` to skip both intermediate files.
 
 `replace_codons` is enabled by default during overhang search. Add
-`--disable-replace-codons` or `--no-codon-redesign` to require splitting without
+`--disable-replace-codons` to require splitting without
 synonymous codon redesign.

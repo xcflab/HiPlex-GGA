@@ -34,19 +34,6 @@ def test_cli_can_disable_replace_codons():
     assert args.enable_replace_codons is False
 
 
-def test_cli_accepts_no_codon_redesign_alias():
-    parser = build_parser()
-    args = parser.parse_args([
-        "split",
-        "--input", "input.tsv",
-        "--output", "out.tab",
-        "--subpool-barcodes", "barcodes.tsv",
-        "--subpool-index", "1",
-        "--no-codon-redesign",
-    ])
-    assert args.enable_replace_codons is False
-
-
 def test_cli_accepts_mute():
     parser = build_parser()
     args = parser.parse_args([
@@ -58,23 +45,6 @@ def test_cli_accepts_mute():
         "--subpool-index", "1",
     ])
     assert args.mute is True
-
-
-def test_cli_rejects_removed_intermediate_outputs_flag():
-    parser = build_parser()
-    try:
-        parser.parse_args([
-            "split",
-            "--input", "input.tsv",
-            "--output", "out.tab",
-            "--write-intermediate-outputs",
-            "--subpool-barcodes", "barcodes.tsv",
-            "--subpool-index", "1",
-        ])
-    except SystemExit as exc:
-        assert exc.code == 2
-    else:
-        raise AssertionError("removed --write-intermediate-outputs was accepted")
 
 
 def test_default_intermediate_output_paths_use_output_prefix():

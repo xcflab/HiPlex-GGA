@@ -25,7 +25,6 @@ test = [
 
 [project.scripts]
 hiplex-gga = "oligos_gg_assembly.cli:main"
-oligos-gg = "oligos_gg_assembly.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

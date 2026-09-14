@@ -17,11 +17,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     mutate = subparsers.add_parser("mutate-sites", help="Silently mutate restriction sites")
-    mutate.add_argument("--input", "--input-list", "-input_list", dest="input", required=True)
+    mutate.add_argument("--input", dest="input", required=True)
     mutate.add_argument("--output", "-o", required=True)
     mutate.add_argument(
         "--enzyme-type",
-        "-enzyme_type",
         default="All",
         choices=sorted(silent_mutation.ENZYME_COMBINATIONS),
     )
@@ -36,14 +35,14 @@ def build_parser() -> argparse.ArgumentParser:
     split.set_defaults(func=lambda args: split_oligos.run_from_args(args))
 
     adapters = subparsers.add_parser("add-adapters", help="Add adapters to HiPlex-GGA naked fragments")
-    adapters.add_argument("--input", "--input-list", "-input_list", dest="input", required=True)
+    adapters.add_argument("--input", dest="input", required=True)
     adapters.add_argument("--output", "-o", required=True)
-    adapters.add_argument("--subpool-barcodes", "--subpool_barcode_fname", dest="subpool_barcodes", required=True)
-    adapters.add_argument("--sequence-barcodes", "--sequence_barcode_fname", dest="sequence_barcodes")
-    adapters.add_argument("--subpool-index", "--subp_barc_index", dest="subpool_index", type=int, required=True)
-    adapters.add_argument("--frag-num", "--frag_num", dest="frag_num", type=int, default=3)
-    adapters.add_argument("--adapter-f", "--adapter_f", dest="adapter_f", default="F" * 20)
-    adapters.add_argument("--adapter-r", "--adapter_r", dest="adapter_r", default="R" * 20)
+    adapters.add_argument("--subpool-barcodes", dest="subpool_barcodes", required=True)
+    adapters.add_argument("--sequence-barcodes", dest="sequence_barcodes")
+    adapters.add_argument("--subpool-index", dest="subpool_index", type=int, required=True)
+    adapters.add_argument("--frag-num", dest="frag_num", type=int, default=3)
+    adapters.add_argument("--adapter-f", dest="adapter_f", default="F" * 20)
+    adapters.add_argument("--adapter-r", dest="adapter_r", default="R" * 20)
     adapters.add_argument(
         "--enzyme-scheme",
         choices=["standard", "alternating-bsmbi-bsai", "bsai"],

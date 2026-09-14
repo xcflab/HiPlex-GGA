@@ -20,5 +20,5 @@ oligo. The intermediate outputs are
 intermediate files.
 
 `replace_codons` is enabled by default during overhang search. Add
-`--disable-replace-codons` or `--no-codon-redesign` to require splitting without
+`--disable-replace-codons` to require splitting without
 synonymous codon redesign.

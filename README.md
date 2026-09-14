@@ -27,7 +27,7 @@ Minimum requirements:
 
 ## Command Line Usage
 
-After installation, the package provides the `hiplex-gga` command. The former `oligos-gg` command remains available as a compatibility alias.
+After installation, the package provides the `hiplex-gga` command.
 
 ### Silent mutation
 
@@ -89,11 +89,7 @@ Split parameters:
 | `--codon-table` | No | Custom codon table used for synonymous codon redesign. If omitted, the bundled codon table is used. |
 | `--seed` | No | Random seed for reproducible overhang search and example outputs. |
 | `--mute` | No | Do not write naked fragments or reconstructed whole DNA outputs. |
-| `--disable-replace-codons`, `--no-codon-redesign` | No | Disable synonymous codon redesign during overhang search. |
-
-Several historical option aliases are also accepted, including names with
-underscores such as `--frag_num`, `--adapter_f`, and `--subpool_barcode_fname`.
-The hyphenated option names shown above are recommended for new use.
+| `--disable-replace-codons` | No | Disable synonymous codon redesign during overhang search. |
 
 By default, `split` writes `oligos_naked_fragments.tab` and
 `oligos_whole_dna.tsv` alongside the main output. Use `--mute` to suppress both
