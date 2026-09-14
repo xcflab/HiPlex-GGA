@@ -1,4 +1,4 @@
-"""Top-level command line interface for oligos-gg."""
+"""Top-level command line interface for HiPlex-GGA."""
 
 from __future__ import annotations
 
@@ -9,7 +9,10 @@ from . import add_adapters, silent_mutation, split_oligos
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="oligos-gg")
+    parser = argparse.ArgumentParser(
+        prog="hiplex-gga",
+        description="HiPlex-GGA hierarchical multiplexed Golden Gate assembly tools.",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -28,11 +31,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--enzyme-type", args.enzyme_type,
     ]))
 
-    split = subparsers.add_parser("split", help="Split DNA sequences into Golden Gate oligos")
+    split = subparsers.add_parser("split", help="Split DNA sequences into HiPlex-GGA oligos")
     split_oligos.add_arguments(split)
     split.set_defaults(func=lambda args: split_oligos.run_from_args(args))
 
-    adapters = subparsers.add_parser("add-adapters", help="Add adapters to naked fragments")
+    adapters = subparsers.add_parser("add-adapters", help="Add adapters to HiPlex-GGA naked fragments")
     adapters.add_argument("--input", "--input-list", "-input_list", dest="input", required=True)
     adapters.add_argument("--output", "-o", required=True)
     adapters.add_argument("--subpool-barcodes", "--subpool_barcode_fname", dest="subpool_barcodes", required=True)

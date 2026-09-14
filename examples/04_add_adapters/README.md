@@ -1,7 +1,7 @@
 # Example 04: add adapters to naked fragments
 
 ```bash
-oligos-gg add-adapters \
+hiplex-gga add-adapters \
   --input examples/04_add_adapters/naked_fragments.tab \
   --subpool-barcodes examples/04_add_adapters/subpool_barcode_list_250410.tsv \
   --sequence-barcodes examples/04_add_adapters/sequence_barcode_13bp_96pairs_list_250506.tsv \
