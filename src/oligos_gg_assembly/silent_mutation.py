@@ -106,11 +106,10 @@ def mutate_designs(input_path: str | Path, enzyme_type: str) -> dict[str, str]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Silently mutate restriction enzyme sites.")
-    parser.add_argument("--input", "--input-list", "-input_list", dest="input", required=True)
+    parser.add_argument("--input", dest="input", required=True)
     parser.add_argument("--output", "-o", required=True)
     parser.add_argument(
         "--enzyme-type",
-        "-enzyme_type",
         default="All",
         choices=sorted(ENZYME_COMBINATIONS),
     )

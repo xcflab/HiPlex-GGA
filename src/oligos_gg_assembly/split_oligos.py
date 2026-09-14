@@ -550,28 +550,27 @@ def default_intermediate_output_paths(output_path: str | Path) -> tuple[Path, Pa
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--input", "--input-list", "--input_list", dest="input", required=True)
+    parser.add_argument("--input", dest="input", required=True)
     parser.add_argument("--output", "-o", required=True)
     parser.add_argument(
         "--mute",
         action="store_true",
         help="Do not write naked fragments or reconstructed whole DNA outputs.",
     )
-    parser.add_argument("--naked-output", "--naked_output", dest="naked_output")
-    parser.add_argument("--whole-dna-output", "--whole_dna_output", dest="whole_dna_output")
-    parser.add_argument("--subpool-barcodes", "--subpool_barcode_fname", dest="subpool_barcodes", required=True)
-    parser.add_argument("--adapter-f", "--adapter_f", dest="adapter_f", default="F" * 20)
-    parser.add_argument("--adapter-r", "--adapter_r", dest="adapter_r", default="R" * 20)
-    parser.add_argument("--sequence-barcodes", "--sequence_barcode_fname", dest="sequence_barcodes")
-    parser.add_argument("--subpool-index", "--subp_barc_index", dest="subpool_index", type=int, required=True)
-    parser.add_argument("--max-oligo-length", "--max_oligo_length", dest="max_oligo_length", type=int, default=300)
-    parser.add_argument("--min-oligo-length", "--min_oligo_length", dest="min_oligo_length", type=int, default=251)
-    parser.add_argument("--frag-num", "--frag_num", dest="frag_num", type=int, default=3)
-    parser.add_argument("--codon-table", "--codontable_fname", dest="codon_table")
+    parser.add_argument("--naked-output", dest="naked_output")
+    parser.add_argument("--whole-dna-output", dest="whole_dna_output")
+    parser.add_argument("--subpool-barcodes", dest="subpool_barcodes", required=True)
+    parser.add_argument("--adapter-f", dest="adapter_f", default="F" * 20)
+    parser.add_argument("--adapter-r", dest="adapter_r", default="R" * 20)
+    parser.add_argument("--sequence-barcodes", dest="sequence_barcodes")
+    parser.add_argument("--subpool-index", dest="subpool_index", type=int, required=True)
+    parser.add_argument("--max-oligo-length", dest="max_oligo_length", type=int, default=300)
+    parser.add_argument("--min-oligo-length", dest="min_oligo_length", type=int, default=251)
+    parser.add_argument("--frag-num", dest="frag_num", type=int, default=3)
+    parser.add_argument("--codon-table", dest="codon_table")
     parser.add_argument("--seed", type=int, help="Random seed for reproducible examples/tests.")
     parser.add_argument(
         "--disable-replace-codons",
-        "--no-codon-redesign",
         dest="enable_replace_codons",
         action="store_false",
         default=True,

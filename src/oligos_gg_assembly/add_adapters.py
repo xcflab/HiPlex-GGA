@@ -156,14 +156,14 @@ def add_adapters_to_fragments(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Add Golden Gate adapters to naked fragments.")
-    parser.add_argument("--input", "--input-list", "-input_list", dest="input", required=True)
+    parser.add_argument("--input", dest="input", required=True)
     parser.add_argument("--output", "-o", required=True)
-    parser.add_argument("--subpool-barcodes", "--subpool_barcode_fname", dest="subpool_barcodes", required=True)
-    parser.add_argument("--sequence-barcodes", "--sequence_barcode_fname", dest="sequence_barcodes")
-    parser.add_argument("--subpool-index", "--subp_barc_index", dest="subpool_index", type=int, required=True)
-    parser.add_argument("--frag-num", "--frag_num", dest="frag_num", type=int, default=3)
-    parser.add_argument("--adapter-f", "--adapter_f", dest="adapter_f", default="F" * 20)
-    parser.add_argument("--adapter-r", "--adapter_r", dest="adapter_r", default="R" * 20)
+    parser.add_argument("--subpool-barcodes", dest="subpool_barcodes", required=True)
+    parser.add_argument("--sequence-barcodes", dest="sequence_barcodes")
+    parser.add_argument("--subpool-index", dest="subpool_index", type=int, required=True)
+    parser.add_argument("--frag-num", dest="frag_num", type=int, default=3)
+    parser.add_argument("--adapter-f", dest="adapter_f", default="F" * 20)
+    parser.add_argument("--adapter-r", dest="adapter_r", default="R" * 20)
     parser.add_argument(
         "--enzyme-scheme",
         choices=["standard", "alternating-bsmbi-bsai", "bsai"],
