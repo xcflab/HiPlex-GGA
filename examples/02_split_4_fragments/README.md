@@ -1,7 +1,7 @@
 # Example 02: split one design into four Golden Gate oligos
 
 ```bash
-oligos-gg split \
+hiplex-gga split \
   --input examples/02_split_4_fragments/input.tsv \
   --subpool-barcodes examples/02_split_4_fragments/subpool_barcode_list_250410.tsv \
   --sequence-barcodes examples/02_split_4_fragments/sequence_barcode_13bp_96pairs_list_250506.tsv \
@@ -10,14 +10,14 @@ oligos-gg split \
   --adapter-f ccactccattcgtatcccacgtg \
   --adapter-r cggaatggctaggctgtacggat \
   --seed 1 \
-  --output examples/02_split_4_fragments/oligos.tab \
-  --write-intermediate-outputs
+  --output examples/02_split_4_fragments/oligos.tab
 ```
 
 The main output contains one `fragment_name, oligo_sequence` line per designed
 oligo. The intermediate outputs are
 `examples/02_split_4_fragments/oligos_naked_fragments.tab` and
-`examples/02_split_4_fragments/oligos_whole_dna.tsv`.
+`examples/02_split_4_fragments/oligos_whole_dna.tsv`. Use `--mute` to skip both
+intermediate files.
 
 `replace_codons` is enabled by default during overhang search. Add
 `--disable-replace-codons` or `--no-codon-redesign` to require splitting without

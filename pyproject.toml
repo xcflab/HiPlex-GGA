@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oligos-gg-assembly"
+name = "hiplex-gga"
 version = "0.1.0"
-description = "Design oligo pools for Golden Gate assembly workflows."
+description = "HiPlex-GGA: a hierarchical multiplexed Golden Gate assembly strategy that converts chip-synthesized oligo pools into longer DNA libraries through successive rounds of pooled pairwise assembly."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -24,6 +24,7 @@ test = [
 ]
 
 [project.scripts]
+hiplex-gga = "oligos_gg_assembly.cli:main"
 oligos-gg = "oligos_gg_assembly.cli:main"
 
 [tool.setuptools.packages.find]

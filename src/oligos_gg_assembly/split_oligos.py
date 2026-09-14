@@ -553,14 +553,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--input", "--input-list", "--input_list", dest="input", required=True)
     parser.add_argument("--output", "-o", required=True)
     parser.add_argument(
-        "--write-intermediate-outputs",
-        "--write-intermediates",
-        dest="write_intermediate_outputs",
+        "--mute",
         action="store_true",
-        help=(
-            "Write naked fragments and reconstructed whole DNA using the --output "
-            "prefix unless --naked-output or --whole-dna-output is supplied."
-        ),
+        help="Do not write naked fragments or reconstructed whole DNA outputs.",
     )
     parser.add_argument("--naked-output", "--naked_output", dest="naked_output")
     parser.add_argument("--whole-dna-output", "--whole_dna_output", dest="whole_dna_output")
@@ -586,7 +581,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Split genes into orthogonal pieces for multiplex Golden Gate assembly."
+        description="Split genes into orthogonal pieces for HiPlex-GGA hierarchical multiplexed Golden Gate assembly."
     )
     add_arguments(parser)
     return parser
@@ -614,14 +609,14 @@ def run_from_args(args: argparse.Namespace) -> int:
         return 1
     write_oligo_table(result.final_oligos, args.output)
 
-    naked_output = args.naked_output
-    whole_dna_output = args.whole_dna_output
-    if getattr(args, "write_intermediate_outputs", False):
+    naked_output = None
+    whole_dna_output = None
+    if not getattr(args, "mute", False):
         default_naked_output, default_whole_dna_output = default_intermediate_output_paths(
             args.output
         )
-        naked_output = naked_output or default_naked_output
-        whole_dna_output = whole_dna_output or default_whole_dna_output
+        naked_output = args.naked_output or default_naked_output
+        whole_dna_output = args.whole_dna_output or default_whole_dna_output
     if naked_output:
         write_fragment_table(result.naked_fragments, naked_output)
     if whole_dna_output:
