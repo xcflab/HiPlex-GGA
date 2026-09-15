@@ -15,7 +15,15 @@ The package supports:
 Clone the repository and install it into a Python environment:
 
 ```bash
+git clone https://github.com/xcflab/HiPlex-GGA.git
+cd HiPlex-GGA
 python -m pip install .
+```
+
+Confirm that the command is available:
+
+```bash
+hiplex-gga --help
 ```
 
 Minimum requirements:
@@ -158,9 +166,3 @@ See [docs/file_formats.md](docs/file_formats.md) for barcode and output formats.
 - [Add adapters](examples/04_add_adapters/README.md)
 
 All examples use synthetic data.
-
-## Notes
-
-The public `split` implementation is based on the historical
-`oligo_split_251111.py` script and is exposed as
-`oligos_gg_assembly.split_oligos`.

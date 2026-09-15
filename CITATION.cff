@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use HiPlex-GGA, please cite the associated publication."
+type: software
+title: "HiPlex-GGA"
+version: 1.0.0
+authors:
+  - family-names: "Wu"
+    given-names: "Zhien"
+repository-code: "https://github.com/xcflab/HiPlex-GGA"
+license: Apache-2.0
